@@ -1060,6 +1060,7 @@ function checkLockPw(){
     appUnlocked = true;
     document.getElementById('lockScreen').style.display = 'none';
     document.getElementById('lockPwInput').value = '';
+    setView(currentView);
   } else {
     const err = document.getElementById('lockError');
     err.style.opacity = '1';
