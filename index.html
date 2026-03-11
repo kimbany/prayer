@@ -390,23 +390,58 @@ textarea.inp { resize: none; line-height: 1.7; }
   </div>
 </div>
 
-<!-- 비밀번호 변경 모달 -->
-<div class="overlay" id="pwChangeOverlay">
+<!-- 설정 잠금 해제 모달 -->
+<div class="overlay" id="settingsLockOverlay">
   <div class="sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-title">🔐 비밀번호 변경</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:4px;line-height:1.7;">변경하지 않을 항목은 비워두세요.</div>
-    <label class="inp-label">현재 비밀번호 확인</label>
-    <input class="inp" id="pwCurInput" type="password" placeholder="현재 비밀번호">
-    <div id="pwCurError" style="font-size:12px;color:var(--danger);margin-top:4px;opacity:0;transition:opacity .2s">현재 비밀번호가 틀렸어요</div>
-    <label class="inp-label">새 비밀번호</label>
-    <input class="inp" id="pwNewInput" type="password" placeholder="새 비밀번호">
-    <label class="inp-label">새 비밀번호 확인</label>
-    <input class="inp" id="pwNewConfirm" type="password" placeholder="새 비밀번호 다시 입력">
-    <div id="pwMatchError" style="font-size:12px;color:var(--danger);margin-top:4px;opacity:0;transition:opacity .2s">비밀번호가 일치하지 않아요</div>
+    <div class="sheet-title">🔐 설정 비밀번호</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:4px;line-height:1.7;">설정을 변경하려면 비밀번호를 입력해주세요.</div>
+    <label class="inp-label">비밀번호</label>
+    <input class="inp" id="settingsLockInput" type="password" placeholder="설정 비밀번호 입력" style="letter-spacing:4px;text-align:center;">
+    <div id="settingsLockError" style="font-size:12px;color:var(--danger);margin-top:6px;opacity:0;transition:opacity .2s;text-align:center;">비밀번호가 틀렸어요</div>
     <div class="row-btns">
-      <button class="btn cancel" id="pwChangeCancelBtn">취소</button>
-      <button class="btn primary" id="pwChangeSaveBtn">저장</button>
+      <button class="btn cancel" id="settingsLockCancelBtn">취소</button>
+      <button class="btn primary" id="settingsLockConfirmBtn">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 앱 비밀번호 변경 모달 -->
+<div class="overlay" id="appPwOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🔑 앱 로그인 비밀번호 변경</div>
+    <label class="inp-label">현재 비밀번호</label>
+    <input class="inp" id="appPwCurInput" type="password" placeholder="현재 앱 비밀번호">
+    <div id="appPwCurError" style="font-size:12px;color:var(--danger);margin-top:4px;opacity:0;transition:opacity .2s">현재 비밀번호가 틀렸어요</div>
+    <label class="inp-label">새 비밀번호</label>
+    <input class="inp" id="appPwNewInput" type="password" placeholder="새 비밀번호">
+    <label class="inp-label">새 비밀번호 확인</label>
+    <input class="inp" id="appPwConfirm" type="password" placeholder="새 비밀번호 다시 입력">
+    <div id="appPwMatchError" style="font-size:12px;color:var(--danger);margin-top:4px;opacity:0;transition:opacity .2s">비밀번호가 일치하지 않아요</div>
+    <div class="row-btns">
+      <button class="btn cancel" id="appPwCancelBtn">취소</button>
+      <button class="btn primary" id="appPwSaveBtn">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 설정 비밀번호 변경 모달 -->
+<div class="overlay" id="settingsPwOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🔐 설정 비밀번호 변경</div>
+    <label class="inp-label">현재 설정 비밀번호</label>
+    <input class="inp" id="settingsPwCurInput" type="password" placeholder="현재 설정 비밀번호">
+    <div id="settingsPwCurError" style="font-size:12px;color:var(--danger);margin-top:4px;opacity:0;transition:opacity .2s">현재 비밀번호가 틀렸어요</div>
+    <label class="inp-label">새 비밀번호</label>
+    <input class="inp" id="settingsPwNewInput" type="password" placeholder="새 비밀번호">
+    <label class="inp-label">새 비밀번호 확인</label>
+    <input class="inp" id="settingsPwConfirm" type="password" placeholder="새 비밀번호 다시 입력">
+    <div id="settingsPwMatchError" style="font-size:12px;color:var(--danger);margin-top:4px;opacity:0;transition:opacity .2s">비밀번호가 일치하지 않아요</div>
+    <div class="row-btns">
+      <button class="btn cancel" id="settingsPwCancelBtn">취소</button>
+      <button class="btn primary" id="settingsPwSaveBtn">저장</button>
     </div>
   </div>
 </div>
@@ -449,7 +484,9 @@ const db  = getDatabase(app);
 const ROOT = 'prayer';
 
 let APP_PW = '1234';
+let SETTINGS_PW = '1234';
 let appUnlocked = false;
+let settingsUnlocked = false;
 let currentView = 'prayers';
 let isSyncing = false;
 let editingMemberId = null;
@@ -468,7 +505,7 @@ let S = {
 
 function saveToStorage(){
   if(isSyncing) return;
-  set(ref(db, ROOT), { members: S.members, prayers: S.prayers, nextId: S.nextId, appPw: APP_PW });
+  set(ref(db, ROOT), { members: S.members, prayers: S.prayers, nextId: S.nextId, appPw: APP_PW, settingsPw: SETTINGS_PW });
 }
 
 function showSyncStatus(msg){
@@ -497,6 +534,11 @@ function today(){ return new Date().toISOString().slice(0,10); }
 
 // ── VIEW
 function setView(v){
+  // 설정 탭은 별도 비밀번호 필요
+  if(v === 'settings' && !settingsUnlocked){
+    openSettingsLockModal();
+    return;
+  }
   currentView = v;
   ['prayers','members','settings'].forEach(x=>{
     document.getElementById('view-'+x).style.display = x===v ? '' : 'none';
@@ -1047,45 +1089,146 @@ function renderSettings(){
   pwCard.className = 'setting-card';
   const pwHdr = document.createElement('div');
   pwHdr.className = 'setting-header';
-  pwHdr.innerHTML = `<div><div class="setting-title">🔐 비밀번호</div><div class="setting-sub">앱 접속 비밀번호 변경</div></div>`;
-  const pwBtn = document.createElement('button');
-  pwBtn.className = 'sm-btn edit'; pwBtn.textContent = '변경';
-  pwBtn.addEventListener('click', openPwChangeModal);
-  pwHdr.appendChild(pwBtn);
+  pwHdr.innerHTML = `<div><div class="setting-title">🔐 비밀번호 관리</div><div class="setting-sub">앱 로그인 · 설정 비밀번호 변경</div></div>`;
   pwCard.appendChild(pwHdr);
+
+  // 앱 비밀번호 행
+  const appPwRow = document.createElement('div');
+  appPwRow.className = 'member-tab-row';
+  appPwRow.innerHTML = `
+    <div class="member-tab-avatar">🔑</div>
+    <div class="member-tab-info">
+      <div class="member-tab-name">앱 로그인 비밀번호</div>
+      <div class="member-tab-sub">처음 진입 시 사용하는 비밀번호</div>
+    </div>`;
+  const appPwBtn = document.createElement('button');
+  appPwBtn.className = 'sm-btn edit'; appPwBtn.textContent = '변경';
+  appPwBtn.addEventListener('click', openAppPwModal);
+  appPwRow.appendChild(appPwBtn);
+  pwCard.appendChild(appPwRow);
+
+  // 설정 비밀번호 행
+  const settingsPwRow = document.createElement('div');
+  settingsPwRow.className = 'member-tab-row';
+  settingsPwRow.innerHTML = `
+    <div class="member-tab-avatar">🔐</div>
+    <div class="member-tab-info">
+      <div class="member-tab-name">설정 비밀번호</div>
+      <div class="member-tab-sub">설정 탭 진입 시 사용하는 비밀번호</div>
+    </div>`;
+  const settingsPwBtn = document.createElement('button');
+  settingsPwBtn.className = 'sm-btn edit'; settingsPwBtn.textContent = '변경';
+  settingsPwBtn.addEventListener('click', openSettingsPwModal);
+  settingsPwRow.appendChild(settingsPwBtn);
+  pwCard.appendChild(settingsPwRow);
+
   wrap.appendChild(pwCard);
+
+  // 설정 잠금 버튼
+  const lockBtn = document.createElement('button');
+  lockBtn.style.cssText = 'width:100%;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:var(--card2);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;';
+  lockBtn.textContent = '🔒 설정 잠그기';
+  lockBtn.addEventListener('click', ()=>{
+    settingsUnlocked = false;
+    setView('prayers');
+    showToast('🔒 설정이 잠겼어요');
+  });
+  wrap.appendChild(lockBtn);
 }
 
-// ── 비밀번호 변경
-function openPwChangeModal(){
-  document.getElementById('pwCurInput').value = '';
-  document.getElementById('pwNewInput').value = '';
-  document.getElementById('pwNewConfirm').value = '';
-  document.getElementById('pwCurError').style.opacity = '0';
-  document.getElementById('pwMatchError').style.opacity = '0';
-  document.getElementById('pwChangeOverlay').classList.add('open');
-  setTimeout(()=>document.getElementById('pwCurInput').focus(), 300);
+// ── 설정 잠금 모달
+function openSettingsLockModal(){
+  document.getElementById('settingsLockInput').value = '';
+  document.getElementById('settingsLockError').style.opacity = '0';
+  document.getElementById('settingsLockOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('settingsLockInput').focus(), 300);
 }
-function closePwChangeModal(){ document.getElementById('pwChangeOverlay').classList.remove('open'); }
-function savePwChange(){
-  const cur  = document.getElementById('pwCurInput').value;
-  const nw   = document.getElementById('pwNewInput').value;
-  const conf = document.getElementById('pwNewConfirm').value;
+function closeSettingsLockModal(){
+  document.getElementById('settingsLockOverlay').classList.remove('open');
+}
+function checkSettingsPw(){
+  const val = document.getElementById('settingsLockInput').value;
+  if(val === SETTINGS_PW){
+    settingsUnlocked = true;
+    closeSettingsLockModal();
+    // 탭 전환
+    currentView = 'settings';
+    ['prayers','members','settings'].forEach(x=>{
+      document.getElementById('view-'+x).style.display = x==='settings' ? '' : 'none';
+      document.getElementById('tab-'+x).classList.toggle('active', x==='settings');
+    });
+    renderSettings();
+  } else {
+    const err = document.getElementById('settingsLockError');
+    err.style.opacity = '1';
+    document.getElementById('settingsLockInput').value = '';
+    document.getElementById('settingsLockInput').focus();
+    setTimeout(()=>err.style.opacity='0', 2000);
+  }
+}
+
+// ── 앱 비밀번호 변경
+function openAppPwModal(){
+  document.getElementById('appPwCurInput').value = '';
+  document.getElementById('appPwNewInput').value = '';
+  document.getElementById('appPwConfirm').value = '';
+  document.getElementById('appPwCurError').style.opacity = '0';
+  document.getElementById('appPwMatchError').style.opacity = '0';
+  document.getElementById('appPwOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('appPwCurInput').focus(), 300);
+}
+function closeAppPwModal(){ document.getElementById('appPwOverlay').classList.remove('open'); }
+function saveAppPw(){
+  const cur  = document.getElementById('appPwCurInput').value;
+  const nw   = document.getElementById('appPwNewInput').value;
+  const conf = document.getElementById('appPwConfirm').value;
   if(cur !== APP_PW){
-    document.getElementById('pwCurError').style.opacity = '1';
-    setTimeout(()=>document.getElementById('pwCurError').style.opacity='0', 2000);
+    document.getElementById('appPwCurError').style.opacity = '1';
+    setTimeout(()=>document.getElementById('appPwCurError').style.opacity='0', 2000);
     return;
   }
-  if(!nw){ closePwChangeModal(); return; }
+  if(!nw){ closeAppPwModal(); return; }
   if(nw !== conf){
-    document.getElementById('pwMatchError').style.opacity = '1';
-    setTimeout(()=>document.getElementById('pwMatchError').style.opacity='0', 2000);
+    document.getElementById('appPwMatchError').style.opacity = '1';
+    setTimeout(()=>document.getElementById('appPwMatchError').style.opacity='0', 2000);
     return;
   }
   APP_PW = nw;
   saveToStorage();
-  closePwChangeModal();
-  showToast('🔐 비밀번호 변경 완료!');
+  closeAppPwModal();
+  showToast('🔑 앱 비밀번호 변경 완료!');
+}
+
+// ── 설정 비밀번호 변경
+function openSettingsPwModal(){
+  document.getElementById('settingsPwCurInput').value = '';
+  document.getElementById('settingsPwNewInput').value = '';
+  document.getElementById('settingsPwConfirm').value = '';
+  document.getElementById('settingsPwCurError').style.opacity = '0';
+  document.getElementById('settingsPwMatchError').style.opacity = '0';
+  document.getElementById('settingsPwOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('settingsPwCurInput').focus(), 300);
+}
+function closeSettingsPwModal(){ document.getElementById('settingsPwOverlay').classList.remove('open'); }
+function saveSettingsPw(){
+  const cur  = document.getElementById('settingsPwCurInput').value;
+  const nw   = document.getElementById('settingsPwNewInput').value;
+  const conf = document.getElementById('settingsPwConfirm').value;
+  if(cur !== SETTINGS_PW){
+    document.getElementById('settingsPwCurError').style.opacity = '1';
+    setTimeout(()=>document.getElementById('settingsPwCurError').style.opacity='0', 2000);
+    return;
+  }
+  if(!nw){ closeSettingsPwModal(); return; }
+  if(nw !== conf){
+    document.getElementById('settingsPwMatchError').style.opacity = '1';
+    setTimeout(()=>document.getElementById('settingsPwMatchError').style.opacity='0', 2000);
+    return;
+  }
+  SETTINGS_PW = nw;
+  saveToStorage();
+  closeSettingsPwModal();
+  showToast('🔐 설정 비밀번호 변경 완료!');
 }
 
 // ── 잠금화면
@@ -1144,6 +1287,7 @@ function startRealtimeSync(){
     S.prayers = data.prayers || [];
     S.nextId  = data.nextId  || S.nextId;
     if(data.appPw) APP_PW = data.appPw;
+    if(data.settingsPw) SETTINGS_PW = data.settingsPw;
     isSyncing = false;
 
     const lockScreen = document.getElementById('lockScreen');
@@ -1171,9 +1315,18 @@ document.getElementById('mSaveBtn').addEventListener('click', saveMember);
 document.getElementById('mName').addEventListener('keydown', e=>{ if(e.key==='Enter') saveMember(); });
 document.getElementById('memberOverlay').addEventListener('click', e=>{ if(e.target===document.getElementById('memberOverlay')) closeMemberModal(); });
 
-document.getElementById('pwChangeCancelBtn').addEventListener('click', closePwChangeModal);
-document.getElementById('pwChangeSaveBtn').addEventListener('click', savePwChange);
-document.getElementById('pwChangeOverlay').addEventListener('click', e=>{ if(e.target===document.getElementById('pwChangeOverlay')) closePwChangeModal(); });
+document.getElementById('settingsLockCancelBtn').addEventListener('click', closeSettingsLockModal);
+document.getElementById('settingsLockConfirmBtn').addEventListener('click', checkSettingsPw);
+document.getElementById('settingsLockInput').addEventListener('keydown', e=>{ if(e.key==='Enter') checkSettingsPw(); });
+document.getElementById('settingsLockOverlay').addEventListener('click', e=>{ if(e.target===document.getElementById('settingsLockOverlay')) closeSettingsLockModal(); });
+
+document.getElementById('appPwCancelBtn').addEventListener('click', closeAppPwModal);
+document.getElementById('appPwSaveBtn').addEventListener('click', saveAppPw);
+document.getElementById('appPwOverlay').addEventListener('click', e=>{ if(e.target===document.getElementById('appPwOverlay')) closeAppPwModal(); });
+
+document.getElementById('settingsPwCancelBtn').addEventListener('click', closeSettingsPwModal);
+document.getElementById('settingsPwSaveBtn').addEventListener('click', saveSettingsPw);
+document.getElementById('settingsPwOverlay').addEventListener('click', e=>{ if(e.target===document.getElementById('settingsPwOverlay')) closeSettingsPwModal(); });
 
 document.getElementById('pEditCancelBtn').addEventListener('click', closePrayerEditModal);
 document.getElementById('pEditSaveBtn').addEventListener('click', savePrayerEdit);
