@@ -411,6 +411,24 @@ textarea.inp { resize: none; line-height: 1.7; }
   </div>
 </div>
 
+<!-- 기도제목 수정 모달 -->
+<div class="overlay" id="prayerEditOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">✏️ 기도제목 수정</div>
+    <label class="inp-label">멤버</label>
+    <select class="inp" id="pEditMember"></select>
+    <label class="inp-label">날짜</label>
+    <input class="inp" id="pEditDate" type="date">
+    <label class="inp-label">기도제목</label>
+    <textarea class="inp" id="pEditText" rows="4" placeholder="기도 내용을 입력하세요..."></textarea>
+    <div class="row-btns">
+      <button class="btn cancel" id="pEditCancelBtn">취소</button>
+      <button class="btn primary" id="pEditSaveBtn">저장</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script type="module">
@@ -820,35 +838,7 @@ function renderMembers(){
       </div>`;
       card.appendChild(ch);
 
-      prayers.forEach(p=>{
-        const row = document.createElement('div');
-        row.className = 'saved-prayer-row';
-        row.style.alignItems = 'center';
-
-        const txt = document.createElement('div');
-        txt.className = 'saved-prayer-text';
-        txt.textContent = p.text;
-
-        const dateTag = document.createElement('div');
-        dateTag.style.cssText = 'font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0;margin-left:6px;';
-        dateTag.textContent = fmtDateShort(p.date);
-
-        const delBtn = document.createElement('button');
-        delBtn.className = 'saved-prayer-del';
-        delBtn.textContent = '✕';
-        delBtn.addEventListener('click', ()=>{
-          if(!confirm('이 기도제목을 삭제할까요?')) return;
-          S.prayers = S.prayers.filter(x=>x.id!==p.id);
-          saveToStorage(); renderMembers();
-          showToast('🗑 삭제 완료');
-        });
-
-        row.appendChild(txt);
-        row.appendChild(dateTag);
-        row.appendChild(delBtn);
-        card.appendChild(row);
-      });
-
+      prayers.forEach(p=>{ card.appendChild(makePrayerRow(p, renderMembers)); });
       wrap.appendChild(card);
     });
 
@@ -868,7 +858,6 @@ function renderMembers(){
       const card = document.createElement('div');
       card.className = 'card';
 
-      // 이 날짜에 있는 멤버별로 묶기
       S.members.forEach(mem=>{
         const mPrayers = prayersOnDate.filter(p=>p.memberId===mem.id);
         if(!mPrayers.length) return;
@@ -878,33 +867,92 @@ function renderMembers(){
         memHdrRow.textContent = (mem.emoji||'🙂') + ' ' + mem.name;
         card.appendChild(memHdrRow);
 
-        mPrayers.forEach(p=>{
-          const row = document.createElement('div');
-          row.className = 'saved-prayer-row';
-
-          const txt = document.createElement('div');
-          txt.className = 'saved-prayer-text';
-          txt.textContent = p.text;
-
-          const delBtn = document.createElement('button');
-          delBtn.className = 'saved-prayer-del';
-          delBtn.textContent = '✕';
-          delBtn.addEventListener('click', ()=>{
-            if(!confirm('이 기도제목을 삭제할까요?')) return;
-            S.prayers = S.prayers.filter(x=>x.id!==p.id);
-            saveToStorage(); renderMembers();
-            showToast('🗑 삭제 완료');
-          });
-
-          row.appendChild(txt);
-          row.appendChild(delBtn);
-          card.appendChild(row);
-        });
+        mPrayers.forEach(p=>{ card.appendChild(makePrayerRow(p, renderMembers)); });
       });
 
       wrap.appendChild(card);
     });
   }
+}
+
+// 기도제목 행 공통 생성 (날짜 앞 + 수정/삭제)
+function makePrayerRow(p, onRefresh){
+  const row = document.createElement('div');
+  row.className = 'saved-prayer-row';
+  row.style.alignItems = 'flex-start';
+  row.style.gap = '8px';
+
+  // 날짜 태그 (앞에)
+  const dateTag = document.createElement('div');
+  dateTag.style.cssText = 'font-size:11px;font-weight:700;color:var(--gold);background:rgba(201,168,76,0.10);border-radius:6px;padding:3px 7px;white-space:nowrap;flex-shrink:0;margin-top:2px;';
+  dateTag.textContent = fmtDateShort(p.date);
+
+  // 기도제목 텍스트
+  const txt = document.createElement('div');
+  txt.className = 'saved-prayer-text';
+  txt.style.flex = '1';
+  txt.textContent = p.text;
+
+  // 버튼 묶음
+  const btnWrap = document.createElement('div');
+  btnWrap.style.cssText = 'display:flex;gap:4px;flex-shrink:0;margin-top:1px;';
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'sm-btn edit';
+  editBtn.textContent = '수정';
+  editBtn.addEventListener('click', ()=> openPrayerEditModal(p.id, onRefresh));
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'saved-prayer-del';
+  delBtn.style.cssText = 'background:rgba(239,68,68,0.12);border-radius:6px;padding:3px 7px;font-size:12px;font-weight:700;color:var(--danger);border:none;cursor:pointer;';
+  delBtn.textContent = '삭제';
+  delBtn.addEventListener('click', ()=>{
+    if(!confirm('이 기도제목을 삭제할까요?')) return;
+    S.prayers = S.prayers.filter(x=>x.id!==p.id);
+    saveToStorage(); onRefresh();
+    showToast('🗑 삭제 완료');
+  });
+
+  btnWrap.appendChild(editBtn);
+  btnWrap.appendChild(delBtn);
+  row.appendChild(dateTag);
+  row.appendChild(txt);
+  row.appendChild(btnWrap);
+  return row;
+}
+
+// ── 기도제목 수정 모달
+let editingPrayerId = null;
+let editingPrayerRefresh = null;
+
+function openPrayerEditModal(id, onRefresh){
+  const p = S.prayers.find(x=>x.id===id);
+  if(!p) return;
+  editingPrayerId = id;
+  editingPrayerRefresh = onRefresh;
+
+  const sel = document.getElementById('pEditMember');
+  sel.innerHTML = S.members.map(m=>`<option value="${m.id}" ${p.memberId===m.id?'selected':''}>${m.emoji||'🙂'} ${m.name}</option>`).join('');
+  document.getElementById('pEditText').value = p.text;
+  document.getElementById('pEditDate').value = p.date || today();
+  document.getElementById('prayerEditOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('pEditText').focus(), 300);
+}
+function closePrayerEditModal(){
+  document.getElementById('prayerEditOverlay').classList.remove('open');
+}
+function savePrayerEdit(){
+  const text = document.getElementById('pEditText').value.trim();
+  if(!text){ document.getElementById('pEditText').focus(); return; }
+  const p = S.prayers.find(x=>x.id===editingPrayerId);
+  if(!p) return;
+  p.text = text;
+  p.memberId = parseInt(document.getElementById('pEditMember').value);
+  p.date = document.getElementById('pEditDate').value;
+  saveToStorage();
+  closePrayerEditModal();
+  if(editingPrayerRefresh) editingPrayerRefresh();
+  showToast('✏️ 수정 완료!');
 }
 
 // ══════════════════════════════════
@@ -1126,6 +1174,10 @@ document.getElementById('memberOverlay').addEventListener('click', e=>{ if(e.tar
 document.getElementById('pwChangeCancelBtn').addEventListener('click', closePwChangeModal);
 document.getElementById('pwChangeSaveBtn').addEventListener('click', savePwChange);
 document.getElementById('pwChangeOverlay').addEventListener('click', e=>{ if(e.target===document.getElementById('pwChangeOverlay')) closePwChangeModal(); });
+
+document.getElementById('pEditCancelBtn').addEventListener('click', closePrayerEditModal);
+document.getElementById('pEditSaveBtn').addEventListener('click', savePrayerEdit);
+document.getElementById('prayerEditOverlay').addEventListener('click', e=>{ if(e.target===document.getElementById('prayerEditOverlay')) closePrayerEditModal(); });
 
 startRealtimeSync();
 </script>
