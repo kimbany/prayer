@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>기도제목</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0f14;
+  --card: #161920;
+  --card2: #1e2230;
+  --border: #2a2f45;
+  --text: #eef0f8;
+  --muted: #7a7f9a;
+  --gold: #c9a84c;
+  --gold2: #f0d080;
+  --accent: #7b9cff;
+  --answered: #4ade80;
+  --danger: #ef4444;
+  --radius: 18px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; overscroll-behavior: none; }
+
+/* 배경 패턴 */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 80% 10%, rgba(201,168,76,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 10% 80%, rgba(123,156,255,0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.app { position: relative; z-index: 1; min-height: 100vh; max-width: 480px; margin: 0 auto; }
+
+/* ── 잠금화면 */
+#lockScreen {
+  position: fixed; inset: 0; z-index: 9000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 28px; padding: 40px 32px;
+}
+.lock-logo {
+  text-align: center;
+}
+.lock-logo-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 30px; font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+.lock-logo-sub {
+  font-size: 13px; color: var(--muted);
+  letter-spacing: 1px;
+}
+.lock-cross {
+  font-size: 40px; margin-bottom: 4px;
+}
+.lock-box {
+  width: 100%; max-width: 320px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+#lockLoadingMsg {
+  font-size: 12px; color: var(--muted);
+  text-align: center; padding: 4px 0;
+}
+#offlineMsg {
+  display: none;
+  background: rgba(239,68,68,0.10);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13px; color: #ef4444;
+  text-align: center; line-height: 1.7;
+}
+#lockPwInput {
+  width: 100%;
+  background: var(--card2); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 15px 18px;
+  color: var(--text); font-size: 18px;
+  font-family: 'Noto Sans KR', sans-serif;
+  outline: none; text-align: center; letter-spacing: 6px;
+  transition: border-color .2s;
+  opacity: 0.5;
+}
+#lockPwInput:focus { border-color: var(--gold); }
+#lockPwInput:not(:disabled) { opacity: 1; }
+#lockError {
+  font-size: 12px; color: var(--danger);
+  text-align: center; opacity: 0; transition: opacity .2s;
+}
+#lockBtn {
+  width: 100%; padding: 15px;
+  border-radius: 14px; border: none;
+  background: var(--gold); color: #0d0f14;
+  font-size: 15px; font-weight: 900;
+  cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+  letter-spacing: 1px; opacity: 0.5;
+  transition: opacity .2s, transform .1s;
+}
+#lockBtn:not(:disabled):active { transform: scale(0.97); }
+
+/* ── 헤더 */
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,20,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 16px 0;
+}
+.header-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.logo {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 20px; font-weight: 700;
+  color: var(--gold); letter-spacing: 1px;
+}
+.logo span { color: var(--text); font-weight: 400; font-size: 13px; margin-left: 6px; }
+#syncStatus {
+  font-size: 11px; font-weight: 700;
+  color: var(--answered);
+  opacity: 0; transition: opacity .5s;
+}
+.view-tabs {
+  display: flex; gap: 4px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.view-tabs::-webkit-scrollbar { display: none; }
+.view-tab {
+  flex-shrink: 0;
+  padding: 9px 14px;
+  font-size: 13px; font-weight: 700;
+  color: var(--muted); border-bottom: 2px solid transparent;
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.view-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* ── 공통 */
+.classes-wrap { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.card-header {
+  padding: 14px 16px;
+  background: var(--card2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title { font-size: 15px; font-weight: 900; }
+.card-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.inp-label { font-size: 11px; color: var(--muted); font-weight: 700; display: block; margin-bottom: 5px; margin-top: 12px; letter-spacing: .5px; }
+.inp {
+  width: 100%; background: var(--card2); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 11px 13px;
+  color: var(--text); font-size: 14px;
+  font-family: 'Noto Sans KR', sans-serif; outline: none;
+  transition: border-color .2s;
+}
+.inp:focus { border-color: var(--gold); }
+textarea.inp { resize: none; line-height: 1.7; }
+
+.btn {
+  flex: 1; padding: 12px; border-radius: 12px; border: none;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+  transition: opacity .15s, transform .1s;
+}
+.btn:active { transform: scale(0.97); }
+.btn.primary { background: var(--gold); color: #0d0f14; }
+.btn.cancel { background: var(--card2); color: var(--muted); border: 1.5px solid var(--border); }
+.btn.danger { background: var(--danger); color: #fff; }
+.row-btns { display: flex; gap: 8px; margin-top: 16px; }
+
+.sm-btn {
+  padding: 5px 11px; border-radius: 8px; border: none;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+}
+.sm-btn.edit { background: rgba(123,156,255,0.15); color: var(--accent); }
+.sm-btn.del  { background: rgba(239,68,68,0.12); color: var(--danger); }
+
+.empty {
+  text-align: center; padding: 40px 20px;
+  font-size: 14px; color: var(--muted); line-height: 2;
+}
+
+/* ── 기도제목 카드 */
+.prayer-item {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 12px; align-items: flex-start;
+  cursor: pointer; transition: background .15s;
+}
+.prayer-item:last-child { border-bottom: none; }
+.prayer-item:active { background: var(--card2); }
+.prayer-item.answered { opacity: 0.6; }
+.prayer-check {
+  width: 22px; height: 22px; flex-shrink: 0;
+  border-radius: 50%; border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; margin-top: 2px;
+  transition: all .2s; cursor: pointer;
+}
+.prayer-check.done {
+  background: var(--answered); border-color: var(--answered); color: #fff;
+}
+.prayer-body { flex: 1; min-width: 0; }
+.prayer-text {
+  font-size: 14px; line-height: 1.7;
+  word-break: break-all;
+}
+.prayer-text.answered-text { text-decoration: line-through; color: var(--muted); }
+.prayer-date { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.prayer-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+/* ── 멤버 탭 */
+.member-tab-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background .15s;
+}
+.member-tab-row:last-child { border-bottom: none; }
+.member-tab-row:active { background: var(--card2); }
+.member-tab-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--card2); border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.member-tab-info { flex: 1; }
+.member-tab-name { font-size: 14px; font-weight: 700; }
+.member-tab-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.prayer-count-badge {
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 3px 10px;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+}
+.prayer-count-badge.has { color: var(--gold); border-color: rgba(201,168,76,0.3); background: rgba(201,168,76,0.08); }
+
+/* ── 오버레이/시트 */
+.overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: flex-end;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+}
+.overlay.open { opacity: 1; pointer-events: all; }
+.sheet {
+  width: 100%; max-width: 480px; margin: 0 auto;
+  background: var(--card); border-radius: 24px 24px 0 0;
+  padding: 16px 20px 36px;
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.32,.72,0,1);
+  max-height: 90vh; overflow-y: auto;
+}
+.overlay.open .sheet { transform: translateY(0); }
+.sheet-handle {
+  width: 40px; height: 4px; border-radius: 2px;
+  background: var(--border); margin: 0 auto 16px;
+}
+.sheet-title {
+  font-size: 17px; font-weight: 900;
+  margin-bottom: 16px; color: var(--gold);
+  font-family: 'Noto Serif KR', serif;
+}
+
+/* ── 설정 탭 */
+.setting-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  margin-bottom: 12px;
+}
+.setting-header {
+  padding: 14px 16px;
+  background: var(--card2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.setting-title { font-size: 14px; font-weight: 900; }
+.setting-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── Toast */
+#toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--card2); border: 1px solid var(--border);
+  padding: 10px 20px; border-radius: 24px;
+  font-size: 13px; font-weight: 700;
+  opacity: 0; transition: all .25s; z-index: 9999;
+  white-space: nowrap; pointer-events: none;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── 서브탭 */
+.sub-tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  background: var(--bg); padding: 0 16px;
+  position: sticky; top: 89px; z-index: 90;
+}
+.sub-tab {
+  padding: 10px 14px; font-size: 13px; font-weight: 700;
+  color: var(--muted); border-bottom: 2px solid transparent;
+  cursor: pointer; transition: all .15s;
+}
+.sub-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* ── 비밀번호 변경 모달 */
+.pw-field-row { display: flex; flex-direction: column; gap: 0; }
+</style>
+</head>
+<body>
+
+<!-- 잠금화면 -->
+<div id="lockScreen">
+  <div class="lock-logo">
+    <div class="lock-cross">✝️</div>
+    <div class="lock-logo-title">기도제목</div>
+    <div class="lock-logo-sub">소그룹 기도 나눔</div>
+  </div>
+  <div class="lock-box">
+    <div id="lockLoadingMsg">🔄 서버 연결 중...</div>
+    <div id="offlineMsg">
+      📡 인터넷 연결을 확인해주세요<br>
+      <span style="font-size:11px;color:#6b7280">온라인 상태에서만 사용 가능해요</span><br>
+      <button onclick="location.reload()" style="margin-top:8px;padding:6px 16px;border-radius:8px;border:none;background:#ef4444;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🔄 다시 시도</button>
+    </div>
+    <input id="lockPwInput" type="password" placeholder="잠시만 기다려주세요" disabled>
+    <div id="lockError">비밀번호가 틀렸어요</div>
+    <button id="lockBtn" disabled>🙏 입장하기</button>
+  </div>
+</div>
+
+<div class="app">
+
+<header>
+  <div class="header-top">
+    <div class="logo">기도제목 <span>소그룹 나눔</span></div>
+    <span id="syncStatus">동기화됨</span>
+  </div>
+  <div class="view-tabs">
+    <div class="view-tab active" id="tab-prayers">🙏 기도제목</div>
+    <div class="view-tab"       id="tab-members">👥 멤버별</div>
+    <div class="view-tab"       id="tab-settings">⚙ 설정</div>
+  </div>
+</header>
+
+<!-- 기도제목 뷰 -->
+<div id="view-prayers">
+  <div class="classes-wrap" id="prayersWrap"></div>
+</div>
+
+<!-- 멤버별 뷰 -->
+<div id="view-members" style="display:none">
+  <div class="classes-wrap" id="membersWrap"></div>
+</div>
+
+<!-- 설정 뷰 -->
+<div id="view-settings" style="display:none">
+  <div class="classes-wrap" id="settingsWrap"></div>
+</div>
+
+</div><!-- /app -->
+
+<!-- 기도제목 추가/수정 모달 -->
+<div class="overlay" id="prayerOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="prayerModalTitle">기도제목 추가</div>
+    <label class="inp-label">멤버</label>
+    <select class="inp" id="pMember"></select>
+    <label class="inp-label">기도제목</label>
+    <textarea class="inp" id="pText" rows="4" placeholder="기도 내용을 입력하세요..."></textarea>
+    <label class="inp-label">날짜</label>
+    <input class="inp" id="pDate" type="date">
+    <div class="row-btns">
+      <button class="btn cancel" id="pCancelBtn">취소</button>
+      <button class="btn primary" id="pSaveBtn">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 멤버 추가/수정 모달 -->
+<div class="overlay" id="memberOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="memberModalTitle">멤버 추가</div>
+    <label class="inp-label">이름</label>
+    <input class="inp" id="mName" placeholder="홍길동" maxlength="20">
+    <label class="inp-label">이모지 아이콘 (선택)</label>
+    <input class="inp" id="mEmoji" placeholder="🙂" maxlength="4">
+    <div class="row-btns">
+      <button class="btn cancel" id="mCancelBtn">취소</button>
+      <button class="btn primary" id="mSaveBtn">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 비밀번호 변경 모달 -->
+<div class="overlay" id="pwChangeOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🔐 비밀번호 변경</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:4px;line-height:1.7;">변경하지 않을 항목은 비워두세요.</div>
+    <label class="inp-label">현재 비밀번호 확인</label>
+    <input class="inp" id="pwCurInput" type="password" placeholder="현재 비밀번호">
+    <div id="pwCurError" style="font-size:12px;color:var(--danger);margin-top:4px;opacity:0;transition:opacity .2s">현재 비밀번호가 틀렸어요</div>
+    <label class="inp-label">새 비밀번호</label>
+    <input class="inp" id="pwNewInput" type="password" placeholder="새 비밀번호">
+    <label class="inp-label">새 비밀번호 확인</label>
+    <input class="inp" id="pwNewConfirm" type="password" placeholder="새 비밀번호 다시 입력">
+    <div id="pwMatchError" style="font-size:12px;color:var(--danger);margin-top:4px;opacity:0;transition:opacity .2s">비밀번호가 일치하지 않아요</div>
+    <div class="row-btns">
+      <button class="btn cancel" id="pwChangeCancelBtn">취소</button>
+      <button class="btn primary" id="pwChangeSaveBtn">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+// ── Firebase 설정
+const firebaseConfig = {
+  apiKey: "AIzaSyAnMcToc5dKI6CQ9Cl_2CG6BTn0bQo-CSk",
+  authDomain: "prayer-app-31a26.firebaseapp.com",
+  projectId: "prayer-app-31a26",
+  databaseURL: "https://prayer-app-31a26-default-rtdb.asia-southeast1.firebasedatabase.app",
+  storageBucket: "prayer-app-31a26.firebasestorage.app",
+  messagingSenderId: "30199527819",
+  appId: "1:30199527819:web:b5b7a6784170995bff178e",
+};
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+const ROOT = 'prayer';
+
+// ── 상태
+let APP_PW = '1234';
+let appUnlocked = false;
+let currentView = 'prayers';
+let isSyncing = false;
+let editingPrayerId = null;
+let editingMemberId = null;
+
+let S = {
+  members: [],  // [{id, name, emoji}]
+  prayers: [],  // [{id, memberId, text, date, answered}]
+  nextId: 1,
+};
+
+// ── Firebase 저장
+function saveToStorage(){
+  if(isSyncing) return;
+  set(ref(db, ROOT), {
+    members:  S.members,
+    prayers:  S.prayers,
+    nextId:   S.nextId,
+    appPw:    APP_PW,
+  });
+}
+
+// ── 동기화 상태
+function showSyncStatus(msg){
+  const el = document.getElementById('syncStatus');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  setTimeout(()=>{ el.style.opacity='0'; }, 2000);
+}
+
+// ── Toast
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// ── 날짜 포맷
+function fmtDate(d){
+  if(!d) return '';
+  const [y,m,day] = d.split('-');
+  return `${+m}월 ${+day}일`;
+}
+function today(){
+  return new Date().toISOString().slice(0,10);
+}
+
+// ══════════════════════════════════
+//  VIEW
+// ══════════════════════════════════
+function setView(v){
+  currentView = v;
+  ['prayers','members','settings'].forEach(x=>{
+    document.getElementById('view-'+x).style.display = x===v ? '' : 'none';
+    document.getElementById('tab-'+x).classList.toggle('active', x===v);
+  });
+  if(v==='prayers')  renderPrayers();
+  if(v==='members')  renderMembers();
+  if(v==='settings') renderSettings();
+}
+
+// ══════════════════════════════════
+//  기도제목 뷰
+// ══════════════════════════════════
+function renderPrayers(){
+  const wrap = document.getElementById('prayersWrap');
+  wrap.innerHTML = '';
+
+  // 추가 버튼
+  const addBtn = document.createElement('button');
+  addBtn.style.cssText = 'width:100%;padding:13px;border-radius:14px;border:1.5px dashed var(--gold);background:rgba(201,168,76,0.06);color:var(--gold);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.5px;';
+  addBtn.textContent = '✚ 기도제목 추가';
+  addBtn.addEventListener('click', ()=>openPrayerModal(null));
+  wrap.appendChild(addBtn);
+
+  if(!S.members.length){
+    const emp = document.createElement('div');
+    emp.className = 'empty';
+    emp.innerHTML = '먼저 멤버를 추가해주세요<br><span style="font-size:12px">설정 탭에서 멤버를 등록할 수 있어요</span>';
+    wrap.appendChild(emp);
+    return;
+  }
+
+  // 미응답 / 응답됨 분리
+  const active   = S.prayers.filter(p=>!p.answered);
+  const answered = S.prayers.filter(p=>p.answered);
+
+  if(!S.prayers.length){
+    const emp = document.createElement('div');
+    emp.className = 'empty';
+    emp.innerHTML = '기도제목이 없어요<br><span style="font-size:12px">위 버튼으로 추가해보세요 🙏</span>';
+    wrap.appendChild(emp);
+    return;
+  }
+
+  // 멤버별 그룹
+  function renderGroup(list, title){
+    if(!list.length) return;
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'font-size:11px;font-weight:900;color:var(--muted);letter-spacing:1px;padding:4px 0 2px;';
+    hdr.textContent = title;
+    wrap.appendChild(hdr);
+
+    // 멤버별로 묶기
+    S.members.forEach(mem=>{
+      const mPrayers = list.filter(p=>p.memberId===mem.id);
+      if(!mPrayers.length) return;
+      const card = document.createElement('div');
+      card.className = 'card';
+      const ch = document.createElement('div');
+      ch.className = 'card-header';
+      ch.innerHTML = `<div><div class="card-title">${mem.emoji||'🙂'} ${mem.name}</div><div class="card-sub">${mPrayers.length}개</div></div>`;
+      card.appendChild(ch);
+      mPrayers.forEach(p=>{
+        const row = document.createElement('div');
+        row.className = 'prayer-item' + (p.answered?' answered':'');
+        const chk = document.createElement('div');
+        chk.className = 'prayer-check' + (p.answered?' done':'');
+        chk.textContent = p.answered ? '✓' : '';
+        chk.title = p.answered ? '기도 응답됨' : '응답 체크';
+        chk.addEventListener('click', (e)=>{ e.stopPropagation(); toggleAnswered(p.id); });
+        const body = document.createElement('div');
+        body.className = 'prayer-body';
+        body.innerHTML = `<div class="prayer-text${p.answered?' answered-text':''}">${p.text}</div><div class="prayer-date">${fmtDate(p.date)}</div>`;
+        const actions = document.createElement('div');
+        actions.className = 'prayer-actions';
+        const editBtn = document.createElement('button');
+        editBtn.className = 'sm-btn edit'; editBtn.textContent = '수정';
+        editBtn.addEventListener('click', (e)=>{ e.stopPropagation(); openPrayerModal(p.id); });
+        const delBtn = document.createElement('button');
+        delBtn.className = 'sm-btn del'; delBtn.textContent = '삭제';
+        delBtn.addEventListener('click', (e)=>{ e.stopPropagation(); deletePrayer(p.id); });
+        actions.appendChild(editBtn); actions.appendChild(delBtn);
+        row.appendChild(chk); row.appendChild(body); row.appendChild(actions);
+        card.appendChild(row);
+      });
+      wrap.appendChild(card);
+    });
+  }
+
+  renderGroup(active, '🙏 기도 중');
+  renderGroup(answered, '✅ 응답된 기도');
+}
+
+function toggleAnswered(id){
+  const p = S.prayers.find(x=>x.id===id);
+  if(!p) return;
+  p.answered = !p.answered;
+  saveToStorage();
+  renderPrayers();
+  showToast(p.answered ? '✅ 응답 감사드려요!' : '🙏 다시 기도 중으로');
+}
+
+function deletePrayer(id){
+  const p = S.prayers.find(x=>x.id===id);
+  if(!p || !confirm(`'${p.text.slice(0,20)}...' 기도제목을 삭제할까요?`)) return;
+  S.prayers = S.prayers.filter(x=>x.id!==id);
+  saveToStorage();
+  renderPrayers();
+  showToast('🗑 삭제 완료');
+}
+
+// ══════════════════════════════════
+//  기도제목 모달
+// ══════════════════════════════════
+function openPrayerModal(id){
+  editingPrayerId = id;
+  const p = id ? S.prayers.find(x=>x.id===id) : null;
+  document.getElementById('prayerModalTitle').textContent = id ? '기도제목 수정' : '기도제목 추가';
+  document.getElementById('pText').value  = p ? p.text : '';
+  document.getElementById('pDate').value  = p ? (p.date||today()) : today();
+  const sel = document.getElementById('pMember');
+  sel.innerHTML = S.members.map(m=>`<option value="${m.id}" ${p&&p.memberId===m.id?'selected':''}>${m.emoji||'🙂'} ${m.name}</option>`).join('');
+  document.getElementById('prayerOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('pText').focus(), 300);
+}
+function closePrayerModal(){
+  document.getElementById('prayerOverlay').classList.remove('open');
+}
+function savePrayer(){
+  const text = document.getElementById('pText').value.trim();
+  if(!text){ document.getElementById('pText').focus(); return; }
+  const memberId = parseInt(document.getElementById('pMember').value);
+  const date = document.getElementById('pDate').value;
+  if(editingPrayerId){
+    const p = S.prayers.find(x=>x.id===editingPrayerId);
+    p.text=text; p.memberId=memberId; p.date=date;
+    showToast('✏️ 수정 완료!');
+  } else {
+    S.prayers.push({id:S.nextId++, memberId, text, date, answered:false});
+    showToast('🙏 기도제목 추가됨!');
+  }
+  saveToStorage();
+  closePrayerModal();
+  renderPrayers();
+}
+
+// ══════════════════════════════════
+//  멤버별 뷰
+// ══════════════════════════════════
+function renderMembers(){
+  const wrap = document.getElementById('membersWrap');
+  wrap.innerHTML = '';
+
+  if(!S.members.length){
+    wrap.innerHTML = '<div class="empty">멤버가 없어요<br>설정 탭에서 추가해보세요</div>';
+    return;
+  }
+
+  S.members.forEach(mem=>{
+    const prayers = S.prayers.filter(p=>p.memberId===mem.id);
+    const active  = prayers.filter(p=>!p.answered).length;
+    const done    = prayers.filter(p=>p.answered).length;
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    const ch = document.createElement('div');
+    ch.className = 'card-header';
+    ch.innerHTML = `
+      <div>
+        <div class="card-title">${mem.emoji||'🙂'} ${mem.name}</div>
+        <div class="card-sub">기도 중 ${active}개 · 응답 ${done}개</div>
+      </div>`;
+    const addBtn = document.createElement('button');
+    addBtn.className = 'sm-btn edit'; addBtn.textContent = '+ 추가';
+    addBtn.addEventListener('click', ()=>{
+      openPrayerModal(null);
+      setTimeout(()=>{
+        document.getElementById('pMember').value = mem.id;
+      }, 100);
+    });
+    ch.appendChild(addBtn);
+    card.appendChild(ch);
+
+    if(!prayers.length){
+      const emp = document.createElement('div');
+      emp.style.cssText = 'padding:16px;font-size:13px;color:var(--muted);text-align:center;';
+      emp.textContent = '기도제목이 없어요';
+      card.appendChild(emp);
+    } else {
+      prayers.forEach(p=>{
+        const row = document.createElement('div');
+        row.className = 'prayer-item' + (p.answered?' answered':'');
+        const chk = document.createElement('div');
+        chk.className = 'prayer-check' + (p.answered?' done':'');
+        chk.textContent = p.answered ? '✓' : '';
+        chk.addEventListener('click', ()=>{ toggleAnswered(p.id); renderMembers(); });
+        const body = document.createElement('div');
+        body.className = 'prayer-body';
+        body.innerHTML = `<div class="prayer-text${p.answered?' answered-text':''}">${p.text}</div><div class="prayer-date">${fmtDate(p.date)}</div>`;
+        const actions = document.createElement('div');
+        actions.className = 'prayer-actions';
+        const editBtn = document.createElement('button');
+        editBtn.className='sm-btn edit'; editBtn.textContent='수정';
+        editBtn.addEventListener('click', ()=>openPrayerModal(p.id));
+        const delBtn = document.createElement('button');
+        delBtn.className='sm-btn del'; delBtn.textContent='삭제';
+        delBtn.addEventListener('click', ()=>{ deletePrayer(p.id); renderMembers(); });
+        actions.appendChild(editBtn); actions.appendChild(delBtn);
+        row.appendChild(chk); row.appendChild(body); row.appendChild(actions);
+        card.appendChild(row);
+      });
+    }
+    wrap.appendChild(card);
+  });
+}
+
+// ══════════════════════════════════
+//  멤버 모달
+// ══════════════════════════════════
+function openMemberModal(id){
+  editingMemberId = id;
+  const m = id ? S.members.find(x=>x.id===id) : null;
+  document.getElementById('memberModalTitle').textContent = id ? '멤버 수정' : '멤버 추가';
+  document.getElementById('mName').value  = m ? m.name  : '';
+  document.getElementById('mEmoji').value = m ? (m.emoji||'') : '';
+  document.getElementById('memberOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('mName').focus(), 300);
+}
+function closeMemberModal(){
+  document.getElementById('memberOverlay').classList.remove('open');
+}
+function saveMember(){
+  const name = document.getElementById('mName').value.trim();
+  if(!name){ document.getElementById('mName').focus(); return; }
+  const emoji = document.getElementById('mEmoji').value.trim() || '🙂';
+  if(editingMemberId){
+    const m = S.members.find(x=>x.id===editingMemberId);
+    m.name=name; m.emoji=emoji;
+    showToast('✏️ 수정 완료!');
+  } else {
+    S.members.push({id:S.nextId++, name, emoji});
+    showToast(`🎉 ${name} 추가됨!`);
+  }
+  saveToStorage();
+  closeMemberModal();
+  renderSettings();
+}
+function deleteMember(id){
+  const m = S.members.find(x=>x.id===id);
+  if(!m||!confirm(`'${m.name}' 멤버를 삭제할까요?\n기도제목도 함께 삭제됩니다.`)) return;
+  S.members  = S.members.filter(x=>x.id!==id);
+  S.prayers  = S.prayers.filter(x=>x.memberId!==id);
+  saveToStorage();
+  renderSettings();
+  showToast('🗑 삭제 완료');
+}
+
+// ══════════════════════════════════
+//  설정 뷰
+// ══════════════════════════════════
+function renderSettings(){
+  const wrap = document.getElementById('settingsWrap');
+  wrap.innerHTML = '';
+
+  // 멤버 관리 카드
+  const memCard = document.createElement('div');
+  memCard.className = 'setting-card';
+  const memHdr = document.createElement('div');
+  memHdr.className = 'setting-header';
+  memHdr.innerHTML = `<div><div class="setting-title">👥 멤버 관리</div><div class="setting-sub">멤버 추가·수정·삭제</div></div>`;
+  const addMemBtn = document.createElement('button');
+  addMemBtn.className = 'sm-btn edit'; addMemBtn.textContent = '+ 추가';
+  addMemBtn.addEventListener('click', ()=>openMemberModal(null));
+  memHdr.appendChild(addMemBtn);
+  memCard.appendChild(memHdr);
+
+  if(!S.members.length){
+    const emp = document.createElement('div');
+    emp.style.cssText = 'padding:20px;text-align:center;font-size:13px;color:var(--muted);';
+    emp.textContent = '멤버가 없어요';
+    memCard.appendChild(emp);
+  } else {
+    S.members.forEach(m=>{
+      const row = document.createElement('div');
+      row.className = 'member-tab-row';
+      const cnt = S.prayers.filter(p=>p.memberId===m.id&&!p.answered).length;
+      row.innerHTML = `
+        <div class="member-tab-avatar">${m.emoji||'🙂'}</div>
+        <div class="member-tab-info">
+          <div class="member-tab-name">${m.name}</div>
+          <div class="member-tab-sub">기도 중 ${cnt}개</div>
+        </div>`;
+      const btns = document.createElement('div');
+      btns.style.cssText = 'display:flex;gap:6px;';
+      const editBtn = document.createElement('button');
+      editBtn.className='sm-btn edit'; editBtn.textContent='수정';
+      editBtn.addEventListener('click', ()=>openMemberModal(m.id));
+      const delBtn = document.createElement('button');
+      delBtn.className='sm-btn del'; delBtn.textContent='삭제';
+      delBtn.addEventListener('click', ()=>deleteMember(m.id));
+      btns.appendChild(editBtn); btns.appendChild(delBtn);
+      row.appendChild(btns);
+      memCard.appendChild(row);
+    });
+  }
+  wrap.appendChild(memCard);
+
+  // 비밀번호 카드
+  const pwCard = document.createElement('div');
+  pwCard.className = 'setting-card';
+  const pwHdr = document.createElement('div');
+  pwHdr.className = 'setting-header';
+  pwHdr.innerHTML = `<div><div class="setting-title">🔐 비밀번호</div><div class="setting-sub">앱 접속 비밀번호 변경</div></div>`;
+  const pwBtn = document.createElement('button');
+  pwBtn.className = 'sm-btn edit'; pwBtn.textContent = '변경';
+  pwBtn.addEventListener('click', openPwChangeModal);
+  pwHdr.appendChild(pwBtn);
+  pwCard.appendChild(pwHdr);
+  wrap.appendChild(pwCard);
+}
+
+// ── 비밀번호 변경
+function openPwChangeModal(){
+  document.getElementById('pwCurInput').value = '';
+  document.getElementById('pwNewInput').value = '';
+  document.getElementById('pwNewConfirm').value = '';
+  document.getElementById('pwCurError').style.opacity = '0';
+  document.getElementById('pwMatchError').style.opacity = '0';
+  document.getElementById('pwChangeOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('pwCurInput').focus(), 300);
+}
+function closePwChangeModal(){
+  document.getElementById('pwChangeOverlay').classList.remove('open');
+}
+function savePwChange(){
+  const cur   = document.getElementById('pwCurInput').value;
+  const nw    = document.getElementById('pwNewInput').value;
+  const conf  = document.getElementById('pwNewConfirm').value;
+  if(cur !== APP_PW){
+    document.getElementById('pwCurError').style.opacity = '1';
+    setTimeout(()=>document.getElementById('pwCurError').style.opacity='0', 2000);
+    return;
+  }
+  if(!nw){ closePwChangeModal(); return; }
+  if(nw !== conf){
+    document.getElementById('pwMatchError').style.opacity = '1';
+    setTimeout(()=>document.getElementById('pwMatchError').style.opacity='0', 2000);
+    return;
+  }
+  APP_PW = nw;
+  saveToStorage();
+  closePwChangeModal();
+  showToast('🔐 비밀번호 변경 완료!');
+}
+
+// ══════════════════════════════════
+//  잠금화면
+// ══════════════════════════════════
+function unlockInput(){
+  const inp = document.getElementById('lockPwInput');
+  inp.disabled = false;
+  inp.placeholder = '비밀번호 입력';
+  inp.style.opacity = '1';
+  document.getElementById('lockBtn').disabled = false;
+  document.getElementById('lockBtn').style.opacity = '1';
+  document.getElementById('lockLoadingMsg').style.display = 'none';
+  document.getElementById('offlineMsg').style.display = 'none';
+  setTimeout(()=>inp.focus(), 100);
+}
+function showOffline(){
+  document.getElementById('lockLoadingMsg').style.display = 'none';
+  document.getElementById('offlineMsg').style.display = 'block';
+}
+function checkLockPw(){
+  const val = document.getElementById('lockPwInput').value;
+  if(val === APP_PW){
+    appUnlocked = true;
+    document.getElementById('lockScreen').style.display = 'none';
+    document.getElementById('lockPwInput').value = '';
+  } else {
+    const err = document.getElementById('lockError');
+    err.style.opacity = '1';
+    document.getElementById('lockPwInput').value = '';
+    document.getElementById('lockPwInput').focus();
+    setTimeout(()=>err.style.opacity='0', 2000);
+  }
+}
+
+// ══════════════════════════════════
+//  Firebase 동기화
+// ══════════════════════════════════
+function startRealtimeSync(){
+  let firstLoad = true;
+
+  const offlineTimer = setTimeout(()=>{
+    if(firstLoad) showOffline();
+  }, 10000);
+
+  window.addEventListener('offline', ()=>{
+    if(!appUnlocked) showOffline();
+    else showToast('📡 인터넷 연결이 끊겼어요');
+  });
+  window.addEventListener('online', ()=>{
+    if(!appUnlocked){
+      document.getElementById('offlineMsg').style.display = 'none';
+      document.getElementById('lockLoadingMsg').style.display = 'block';
+      document.getElementById('lockLoadingMsg').textContent = '🔄 서버 연결 중...';
+    } else {
+      showToast('✅ 인터넷 연결 복구됨');
+    }
+  });
+
+  onValue(ref(db, ROOT), (snapshot)=>{
+    if(firstLoad){
+      firstLoad = false;
+      clearTimeout(offlineTimer);
+    }
+    const data = snapshot.val();
+    if(!data){
+      unlockInput();
+      setView('prayers');
+      return;
+    }
+    isSyncing = true;
+    S.members = data.members || [];
+    S.prayers = data.prayers || [];
+    S.nextId  = data.nextId  || S.nextId;
+    if(data.appPw) APP_PW = data.appPw;
+    isSyncing = false;
+
+    const lockScreen = document.getElementById('lockScreen');
+    if(lockScreen && lockScreen.style.display !== 'none'){
+      unlockInput();
+    }
+
+    if(appUnlocked){
+      if(currentView==='prayers')  renderPrayers();
+      if(currentView==='members')  renderMembers();
+      if(currentView==='settings') renderSettings();
+    }
+    showSyncStatus('동기화됨');
+  });
+}
+
+// ══════════════════════════════════
+//  이벤트 리스너
+// ══════════════════════════════════
+// 메인 탭
+document.getElementById('tab-prayers').addEventListener('click',  ()=>setView('prayers'));
+document.getElementById('tab-members').addEventListener('click',  ()=>setView('members'));
+document.getElementById('tab-settings').addEventListener('click', ()=>setView('settings'));
+
+// 잠금
+document.getElementById('lockBtn').addEventListener('click', checkLockPw);
+document.getElementById('lockPwInput').addEventListener('keydown', e=>{ if(e.key==='Enter') checkLockPw(); });
+
+// 기도제목 모달
+document.getElementById('pCancelBtn').addEventListener('click', closePrayerModal);
+document.getElementById('pSaveBtn').addEventListener('click', savePrayer);
+document.getElementById('pText').addEventListener('keydown', e=>{ if(e.key==='Enter'&&e.metaKey) savePrayer(); });
+document.getElementById('prayerOverlay').addEventListener('click', e=>{ if(e.target===document.getElementById('prayerOverlay')) closePrayerModal(); });
+
+// 멤버 모달
+document.getElementById('mCancelBtn').addEventListener('click', closeMemberModal);
+document.getElementById('mSaveBtn').addEventListener('click', saveMember);
+document.getElementById('mName').addEventListener('keydown', e=>{ if(e.key==='Enter') saveMember(); });
+document.getElementById('memberOverlay').addEventListener('click', e=>{ if(e.target===document.getElementById('memberOverlay')) closeMemberModal(); });
+
+// 비밀번호 변경
+document.getElementById('pwChangeCancelBtn').addEventListener('click', closePwChangeModal);
+document.getElementById('pwChangeSaveBtn').addEventListener('click', savePwChange);
+document.getElementById('pwChangeOverlay').addEventListener('click', e=>{ if(e.target===document.getElementById('pwChangeOverlay')) closePwChangeModal(); });
+
+// 앱 시작
+startRealtimeSync();
+</script>
+</body>
+</html>
